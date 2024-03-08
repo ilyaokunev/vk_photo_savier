@@ -9,6 +9,9 @@ const { v4: uuid } = require("uuid");
 const tryPath = "C:/Users/zhora/Downloads/Archive/messages/56732918/messages50.html";
 const basePath = path.join(__dirname, "../", "loaded_photos");
 
+let photosOnPage = 0;
+let downloadedPhotos = 0;
+
 function workWithHtmlPage(path) {
   fs.readFile(`${path}`, (err, buffer) => {
     if (err) {
@@ -21,6 +24,8 @@ function workWithHtmlPage(path) {
     const photoLinksList = attachmentsList
       .filter((attachmentDiv) => attachmentDiv.firstElementChild.isEqualNode(elementToCompare))
       .map((attachmentDiv) => attachmentDiv.getElementsByClassName("attachment__link")[0].href);
+
+      photosOnPage = photoLinksList.length;
 
     photoLinksList.forEach((link) => {
       const fileStream = getWriteStream();
@@ -60,7 +65,8 @@ function downloadFile(file, downloadLink) {
       response.pipe(file);
       file.on("finish", () => {
         file.close();
-        console.log("Файл успешно скачан");
+        downloadedPhotos++;
+        console.log(`Со страницы скачано ${downloadedPhotos} из ${photosOnPage}`);
       });
     })
     .on("error", (err) => {
