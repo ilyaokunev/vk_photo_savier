@@ -1,0 +1,16 @@
+{
+  "name": "vk_loader",
+  "version": "1.0.0",
+  "description": "",
+  "main": "loader-node.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "iconv-lite": "^0.6.3",
+    "jsdom": "^24.0.0",
+    "uuid": "^9.0.1"
+  }
+}
