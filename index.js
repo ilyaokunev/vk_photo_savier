@@ -27,11 +27,11 @@ rl.question(
 );
 
 function parseStart() {
-  fs.readdir(messagesDirPath, (err, files) => {
+  fs.readdir(messagesDirPath, (err, chatDirNames) => {
     if (err) {
       console.log(err.message);
     }
-    files.forEach(workWithChatDir);
+    chatDirNames.forEach(workWithChatDir);
   });
 }
 
@@ -39,10 +39,14 @@ function workWithChatDir(dirName) {
   // в папке messages помимо папок есть html файл
   if (dirName.split(".").at(-1) === "html") return;
 
-  const htmlFilesList = fs.readdirSync(path.join(messagesDirPath, dirName));
+  fs.readdir(path.join(messagesDirPath, dirName), (err, files) => {
+    if(err) {
+      console.log(err.message)
+    }
 
-  htmlFilesList.forEach((htmlName) => {
-    workWithHtmlPage(pathToSaveDir, path.join(messagesDirPath, dirName, htmlName));
+    files.forEach((htmlName) => {
+      workWithHtmlPage(pathToSaveDir, path.join(messagesDirPath, dirName, htmlName));
+    })
   });
 }
 
