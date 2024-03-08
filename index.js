@@ -1,6 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const readline = require("readline");
+const { fork } = require("child_process");
 
 let archivePath = path.join(__dirname, "../");
 let messagesDirPath = path.join(archivePath, "Archive", "messages");
@@ -26,10 +27,9 @@ rl.question(
 );
 
 function parseStart() {
-
   fs.readdir(messagesDirPath, (err, files) => {
-    if(err) {
-      console.log(err.message)
+    if (err) {
+      console.log(err.message);
     }
     files.forEach(workWithChatDir);
   });
@@ -37,19 +37,18 @@ function parseStart() {
 
 function workWithChatDir(dirName) {
   // в папке messages помимо папок есть html файл
-  if(dirName.split('.').at(-1) === 'html') return;
+  if (dirName.split(".").at(-1) === "html") return;
 
   const htmlFilesList = fs.readdirSync(path.join(messagesDirPath, dirName));
 
-  htmlFilesList.forEach(htmlName => {
+  htmlFilesList.forEach((htmlName) => {
     workWithHtmlPage(pathToSaveDir, path.join(messagesDirPath, dirName, htmlName));
-  })
-
+  });
 }
 
 function workWithHtmlPage(pathToSaveDir, htmlPath) {
-  console.log(pathToSaveDir, htmlPath);
-  // const fileContent = fs.readFileSync(`${dirWithMess}/${additionalPath}`, "utf-8");
+  const pageParseProcess = fork("./page-parser.js");
+  pageParseProcess.send({ pathToSaveDir, htmlFilePath: htmlPath });
 }
 
 function updateSubPath() {

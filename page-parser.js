@@ -6,11 +6,19 @@ const iconv = require("iconv-lite");
 const { JSDOM } = require("jsdom");
 const { v4: uuid } = require("uuid");
 
-const tryPath = "C:/Users/zhora/Downloads/Archive/messages/56732918/messages50.html";
-const basePath = path.join(__dirname, "../", "loaded_photos");
+let savePath;
+let dirName;
+let pageName;
 
 let photosOnPage = 0;
 let downloadedPhotos = 0;
+
+process.on("message", ({ pathToSaveDir, htmlFilePath }) => {
+  savePath = pathToSaveDir;
+  [pageName, dirName] = htmlFilePath.split("\\").reverse();
+
+  workWithHtmlPage(htmlFilePath);
+});
 
 function workWithHtmlPage(path) {
   fs.readFile(`${path}`, (err, buffer) => {
@@ -25,7 +33,7 @@ function workWithHtmlPage(path) {
       .filter((attachmentDiv) => attachmentDiv.firstElementChild.isEqualNode(elementToCompare))
       .map((attachmentDiv) => attachmentDiv.getElementsByClassName("attachment__link")[0].href);
 
-      photosOnPage = photoLinksList.length;
+    photosOnPage = photoLinksList.length;
 
     photoLinksList.forEach((link) => {
       const fileStream = getWriteStream();
@@ -33,8 +41,6 @@ function workWithHtmlPage(path) {
     });
   });
 }
-
-workWithHtmlPage(tryPath);
 
 function getDocumentFromBuffer(buffer) {
   // vk в 2024 использует кодировку window-1251, а мне бы в utf-8 читать
@@ -56,7 +62,7 @@ function getNodeToCompareWith(document) {
 
 function getWriteStream() {
   const nameForPhoto = uuid();
-  return fs.createWriteStream(path.join(basePath, `${nameForPhoto}.jpeg`));
+  return fs.createWriteStream(path.join(savePath, `${nameForPhoto}.jpeg`));
 }
 
 function downloadFile(file, downloadLink) {
@@ -66,7 +72,11 @@ function downloadFile(file, downloadLink) {
       file.on("finish", () => {
         file.close();
         downloadedPhotos++;
-        console.log(`Со страницы скачано ${downloadedPhotos} из ${photosOnPage}`);
+
+        if (photosOnPage === downloadedPhotos) {
+          console.log(`Загрузка фото из файла ${pageName} из директории ${dirName} успешно завершена`);
+          process.exit(0);
+        }
       });
     })
     .on("error", (err) => {
@@ -74,4 +84,6 @@ function downloadFile(file, downloadLink) {
       fs.unlinkSync(localFilePath);
       console.error(err.message);
     });
+
+
 }
