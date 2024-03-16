@@ -38,8 +38,9 @@ function workWithHtmlPage(path) {
     photosOnPage = photoLinksList.length;
 
     photoLinksList.forEach((link) => {
-      const fileStream = getWriteStream();
-      downloadFile(fileStream, link);
+      const filePath = getFilePath();
+
+      downloadFile(fs.createWriteStream(filePath), link, filePath);
     });
   });
 }
@@ -62,26 +63,28 @@ function getNodeToCompareWith(document) {
   return elementToFindInAttachmentDiv;
 }
 
-function getWriteStream() {
+function getFilePath() {
   const nameForPhoto = uuid();
-  return fs.createWriteStream(path.join(savePath, `${nameForPhoto}.jpeg`));
+  return path.join(savePath, `${nameForPhoto}.jpeg`);
 }
 
-function downloadFile(file, downloadLink) {
-  parentPort.postMessage("start");
+function downloadFile(file, downloadLink, filelink) {
+  parentPort.postMessage({text:"start" , link: filelink});
+  // в случае если файл качается очень долго или не качается вовсе но сервер не разрывает соединение
+  setTimeout(() => file.close(), 2 * 60 * 1000);
 
   https
   .get(downloadLink, (response) => response.pipe(file))
   .on("error", (err) => {
       // Удаляем файл, если возникла ошибка при скачивании
-      fs.unlinkSync(localFilePath);
+      fs.unlinkSync(filelink);
       console.error(err.message);
     });
 
     file.on("finish", () => {
       file.close();
       downloadedPhotos++;
-      parentPort.postMessage("finish");
+      parentPort.postMessage({text:"finish", link:filelink});
       if (photosOnPage === downloadedPhotos) console.log(`Загрузка фото из файла ${pageName} из директории ${dirName} успешно завершена`);
     });
 }

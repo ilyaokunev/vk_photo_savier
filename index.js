@@ -14,7 +14,7 @@ const workersArray = [];
 let workerPointer = 0;
 
 let photosInWork = 0;
-
+let arrWithPathes = [];
 
 const rl = readline.createInterface({
   input: process.stdin,
@@ -74,6 +74,7 @@ function workWithHtmlPage(pathToSaveDir, htmlPath) {
 
 function startIntervalForExit() {
   setInterval(() => {
+    console.log(arrWithPathes);
     if (photosInWork === 0) {
       console.log('Скачивание завершено');
       process.exit(0);
@@ -87,8 +88,14 @@ function createWorkers()
     const worker = new Worker("./page-parser.js");
     workersArray.push(worker);
     worker.on('message', (val) => {
-      if (val === 'start') photosInWork++
-      if (val === 'finish') photosInWork-- 
+      if (val.text === 'start') {
+        // arrWithPathes.push(val.link);
+        photosInWork++
+      }
+      if (val.text === 'finish') {
+        // arrWithPathes = arrWithPathes.filter( elem => elem !== val.link)  
+        photosInWork--
+      } 
     });
   }
 }
