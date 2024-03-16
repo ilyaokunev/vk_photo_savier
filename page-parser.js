@@ -6,6 +6,8 @@ const iconv = require("iconv-lite");
 const { JSDOM } = require("jsdom");
 const { v4: uuid } = require("uuid");
 
+const { parentPort } = require("worker_threads");
+
 let savePath;
 let dirName;
 let pageName;
@@ -13,7 +15,7 @@ let pageName;
 let photosOnPage = 0;
 let downloadedPhotos = 0;
 
-process.on("message", ({ pathToSaveDir, htmlFilePath }) => {
+parentPort.on("message", ({ pathToSaveDir, htmlFilePath }) => {
   savePath = pathToSaveDir;
   [pageName, dirName] = htmlFilePath.split("\\").reverse();
 
@@ -66,24 +68,20 @@ function getWriteStream() {
 }
 
 function downloadFile(file, downloadLink) {
-  https
-    .get(downloadLink, (response) => {
-      response.pipe(file);
-      file.on("finish", () => {
-        file.close();
-        downloadedPhotos++;
+  parentPort.postMessage("start");
 
-        if (photosOnPage === downloadedPhotos) {
-          console.log(`Загрузка фото из файла ${pageName} из директории ${dirName} успешно завершена`);
-          process.exit(0);
-        }
-      });
-    })
-    .on("error", (err) => {
+  https
+  .get(downloadLink, (response) => response.pipe(file))
+  .on("error", (err) => {
       // Удаляем файл, если возникла ошибка при скачивании
       fs.unlinkSync(localFilePath);
       console.error(err.message);
     });
 
-
+    file.on("finish", () => {
+      file.close();
+      downloadedPhotos++;
+      parentPort.postMessage("finish");
+      if (photosOnPage === downloadedPhotos) console.log(`Загрузка фото из файла ${pageName} из директории ${dirName} успешно завершена`);
+    });
 }
