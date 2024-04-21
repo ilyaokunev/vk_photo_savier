@@ -7,6 +7,7 @@ const { v4: uuid } = require("uuid");
 
 const { parentPort } = require("worker_threads");
 const downloadFile = require("./download");
+const {ERROR_FILE_NAME} = require("./constants");
 
 let savePath;
 let dirName;
@@ -108,7 +109,7 @@ function finishDownload(file) {
 }
 
 function addErrorToLog(downloadLink,filelink) {
-  const errorPath = path.join(savePath, 'errors_logs.json');
+  const errorPath = path.join(savePath, ERROR_FILE_NAME);
   const error = JSON.stringify({
     directoryName: dirName,
     htmlFileName: pageName,

@@ -4,11 +4,12 @@ const readline = require("readline");
 const { Worker } = require("worker_threads");
 const os = require("os");
 const downloadFile = require("./download");
+const {ERROR_FILE_NAME} = require("./constants");
 
 let archivePath = path.join(__dirname, "../");
 let messagesDirPath = path.join(archivePath, "Archive", "messages");
 let pathToSaveDir = path.join(archivePath, "VK_LOADED_PHOTOS");
-let errorFilePath = path.join(pathToSaveDir, "errors_logs.json");
+let errorFilePath = path.join(pathToSaveDir, ERROR_FILE_NAME);
 
 const numCpuCores = os.cpus().length;
 
@@ -102,7 +103,7 @@ function createWorkers() {
 function updateSubPath() {
   messagesDirPath = path.join(archivePath, "Archive", "messages");
   pathToSaveDir = path.join(archivePath, "VK_LOADED_PHOTOS");
-  errorFilePath = path.join(pathToSaveDir, "errors_logs.json");
+  errorFilePath = path.join(pathToSaveDir, ERROR_FILE_NAME);
 }
 
 function updatePointer() {
@@ -169,7 +170,7 @@ function addToErrorFile(value) {
  const files = fs.readdirSync(pathToSaveDir);
 
     files.forEach((dirName) => {
-      if(dirName !== 'errors_logs.json') {
+      if(dirName !== ERROR_FILE_NAME) {
         const dirPath = path.join(pathToSaveDir, dirName)
         const dirContent = fs.readdirSync(dirPath);
         if (!dirContent.length) {
