@@ -7,10 +7,10 @@ const https = require("https");
         logFn();
         try {
             fs.unlinkSync(filelink);
-            file.close();
         } catch (e) {
             console.log(e);
         }
+        file.close();
     }, 2 * 60 * 1000);
 
     https
