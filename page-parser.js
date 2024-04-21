@@ -1,24 +1,24 @@
 const fs = require("fs");
 const path = require("path");
-const https = require("https");
 
 const iconv = require("iconv-lite");
 const { JSDOM } = require("jsdom");
 const { v4: uuid } = require("uuid");
 
 const { parentPort } = require("worker_threads");
+const downloadFile = require("./download");
 
 let savePath;
 let dirName;
 let pageName;
+let savePathWithCurrentChatDir;
 
 let photosOnPage = 0;
 let downloadedPhotos = 0;
 
+
 parentPort.on("message", ({ pathToSaveDir, htmlFilePath }) => {
   savePath = pathToSaveDir;
-  [pageName, dirName] = htmlFilePath.split("\\").reverse();
-
   workWithHtmlPage(htmlFilePath);
 });
 
@@ -27,22 +27,35 @@ function workWithHtmlPage(path) {
     if (err) {
       console.log(err.message, "error blyad in", path);
     }
+
     const document = getDocumentFromBuffer(buffer);
-    const attachmentsList = getAttachmentList(document);
-    const elementToCompare = getNodeToCompareWith(document);
+    createDirForNewChat(document, path);
 
-    const photoLinksList = attachmentsList
-      .filter((attachmentDiv) => attachmentDiv.firstElementChild.isEqualNode(elementToCompare))
-      .map((attachmentDiv) => attachmentDiv.getElementsByClassName("attachment__link")[0].href);
-
-    photosOnPage = photoLinksList.length;
-
-    photoLinksList.forEach((link) => {
+    getPhotosArray(document).forEach((link) => {
       const filePath = getFilePath();
 
-      downloadFile(fs.createWriteStream(filePath), link, filePath);
+      const file = fs.createWriteStream(filePath);
+      downloadFile(file, link, filePath,() => addErrorToLog(link, filePath), true);
+      parentPort.postMessage("start");
+
+      file.on("finish", () => {
+        finishDownload(file);
+      });
     });
   });
+}
+
+function createDirForNewChat(document, filePath) {
+
+  const [newPageName, newDirName] = filePath.split("\\").reverse();
+
+  if (dirName !== newDirName) {
+    dirName = newDirName;
+    const chatName = getChatName(document);
+    savePathWithCurrentChatDir = path.join(savePath, chatName);
+    fs.mkdirSync(savePathWithCurrentChatDir, { recursive: true });
+  }
+  pageName = newPageName;
 }
 
 function getDocumentFromBuffer(buffer) {
@@ -55,6 +68,25 @@ function getAttachmentList(document) {
   return Array.from(document.querySelectorAll("div.attachment"));
 }
 
+function getChatName(document) {
+  const uiCrumbs = document.querySelector('.page_block_header_inner').querySelectorAll('.ui_crumb');
+  const name = uiCrumbs[uiCrumbs.length -1].innerHTML;
+  return name.split(' ').join('_');
+}
+
+function getPhotosArray(document) {
+  const attachmentsList = getAttachmentList(document);
+  const elementToCompare = getNodeToCompareWith(document);
+
+  const photoLinksList = attachmentsList
+      .filter((attachmentDiv) => attachmentDiv.firstElementChild.isEqualNode(elementToCompare))
+      .map((attachmentDiv) => attachmentDiv.getElementsByClassName("attachment__link")[0].href);
+
+  photosOnPage = photoLinksList.length;
+
+  return photoLinksList;
+}
+
 function getNodeToCompareWith(document) {
   const elementToFindInAttachmentDiv = document.createElement("div");
   elementToFindInAttachmentDiv.classList.add("attachment__description");
@@ -63,28 +95,26 @@ function getNodeToCompareWith(document) {
   return elementToFindInAttachmentDiv;
 }
 
+
 function getFilePath() {
   const nameForPhoto = uuid();
-  return path.join(savePath, `${nameForPhoto}.jpeg`);
+  return path.join(savePathWithCurrentChatDir, `${nameForPhoto}.jpeg`);
 }
 
-function downloadFile(file, downloadLink, filelink) {
-  parentPort.postMessage({text:"start" , link: filelink});
-  // в случае если файл качается очень долго или не качается вовсе но сервер не разрывает соединение
-  setTimeout(() => file.close(), 2 * 60 * 1000);
+function finishDownload(file) {
+  file.close();
+  downloadedPhotos++;
+  parentPort.postMessage("finish");
+}
 
-  https
-  .get(downloadLink, (response) => response.pipe(file))
-  .on("error", (err) => {
-      // Удаляем файл, если возникла ошибка при скачивании
-      fs.unlinkSync(filelink);
-      console.error(err.message);
-    });
+function addErrorToLog(downloadLink,filelink) {
+  const errorPath = path.join(savePath, 'errors_logs.json');
+  const error = JSON.stringify({
+    directoryName: dirName,
+    htmlFileName: pageName,
+    linkToCrushedPicture: filelink,
+    downloadLink,
+  });
 
-    file.on("finish", () => {
-      file.close();
-      downloadedPhotos++;
-      parentPort.postMessage({text:"finish", link:filelink});
-      if (photosOnPage === downloadedPhotos) console.log(`Загрузка фото из файла ${pageName} из директории ${dirName} успешно завершена`);
-    });
+  fs.appendFileSync(errorPath, `\n${error},\n`);
 }
